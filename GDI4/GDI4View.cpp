@@ -12,6 +12,7 @@
 #include "GDI4Doc.h"
 #include "GDI4View.h"
 
+#include <fstream>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -164,6 +165,18 @@ void CTableView::OnInitialUpdate()
 
 	table.setCell(0, 0, new std::string("Product 1"));
 	table.setCell(0, 1, new double(100.0)).setCell(0, 2, new int(10)).setCell(0, 3, new double(1000.0));
+
+	try {
+		table.addRow({ new std::string("Product 2"), new double(200.0), new int(20), new double(4000.0), new std::string("C:\\Users\\Fdk\\Fdkndl\\Ooo\\")});
+	}
+	catch (std::exception& e) {
+		std::ofstream logFile("error_log.txt", std::ios::app);  // Открытие файла для добавления текста
+		if (logFile.is_open()) {
+			logFile << "Error: " << e.what() << std::endl;  // Запись текста ошибки в файл
+			logFile.close();  // Закрытие файла
+		}
+	}
+
 	CSize sizeTotal;
 	sizeTotal.cx = sizeTotal.cy = 100;
 	SetScrollSizes(MM_TEXT, sizeTotal);

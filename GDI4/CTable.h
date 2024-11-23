@@ -107,6 +107,6 @@ public:
 		return *this;
 	}
 
-
+	CTable& addRow(const std::vector<void*>& values);
 };
 

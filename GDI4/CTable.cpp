@@ -169,12 +169,59 @@ void ImgCell::draw(CDC* pDC, CRect& rect)
 	HRESULT hr = img.Load(CString(path.c_str()));
 
 	if (FAILED(hr)) {
+
+		std::wstring wPath(path.begin(), path.end());
 		CString errorMsg;
-		errorMsg.Format(L"Image load failed: %s", path.c_str());
-		pDC->DrawText(errorMsg, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+		errorMsg.Format(L"Image load failed: %s", wPath.c_str());
+		rect.left += 10;
+		pDC->DrawText(errorMsg, rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 		return;
 	}
 	img.Draw(pDC->m_hDC, rect);
 
+}
+
+CTable& CTable::addRow(const std::vector<void*>& values) {
+	// Проверяем, что количество значений соответствует количеству столбцов
+	if (values.size() != columns) {
+		throw std::invalid_argument("Values count should be equal to columns count" + std::to_string(columns) + " but was " + std::to_string(values.size()));
+	}
+
+	// Увеличиваем количество строк
+	rows++;
+
+	// Для каждого столбца проверяем, что достаточно строк в векторе
+	for (int i = 0; i < columns; i++) {
+		if (table[i].size() <= rows) {
+			// Увеличиваем размер столбца, если это необходимо
+			if (types[i] == INT) {
+				table[i].push_back(std::make_unique<IntCell>());
+			}
+			else if (types[i] == DOUBLE) {
+				table[i].push_back(std::make_unique<DoubleCell>());
+			}
+			else if (types[i] == STRING) {
+				table[i].push_back(std::make_unique<StringCell>());
+			}
+			else if (types[i] == IMG) {
+				table[i].push_back(std::make_unique<ImgCell>());
+			}
+			else {
+				throw std::runtime_error("Unknown column type in addRow");
+			}
+		}
+	}
+
+	// Записываем значения в ячейки для текущей строки
+	for (int i = 0; i < columns; i++) {
+		if (table[i][rows - 1] == nullptr) {
+			throw std::runtime_error("Cell is nullptr at row " + std::to_string(rows) + " and column " + std::to_string(i));
+		}
+
+		// Устанавливаем значение в ячейку
+		table[i][rows - 1]->setValue(values[i]);
+	}
+
+	return *this;
 }
 
