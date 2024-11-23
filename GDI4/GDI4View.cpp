@@ -156,11 +156,15 @@ void CTableView::OnInitialUpdate()
 {
 	CScrollView::OnInitialUpdate();
 
-	table.setName("Table").addColumn("Name", CTable::STRING).addColumn("Price", CTable::DOUBLE).addColumn("Count", CTable::INT).addColumn("Revenue", CTable::DOUBLE).addRow().addRow().addRow().addRow().addRow();
+	table.setName("Table").addColumn("Name", CTable::STRING,300).addColumn("Price", CTable::DOUBLE).addColumn("Count", CTable::INT)
+		.addColumn("Revenue", CTable::DOUBLE, 300).addRow().addRow().addRow().addRow();
 
-	
+	table.addColumn("Photo", CTable::IMG,700);
+
+
+	table.setCell(0, 0, new std::string("Product 1"));
+	table.setCell(0, 1, new double(100.0)).setCell(0, 2, new int(10)).setCell(0, 3, new double(1000.0));
 	CSize sizeTotal;
-	// Установка начального скроллинга
 	sizeTotal.cx = sizeTotal.cy = 100;
 	SetScrollSizes(MM_TEXT, sizeTotal);
 }

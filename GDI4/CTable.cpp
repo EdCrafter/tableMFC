@@ -2,6 +2,7 @@
 #include "CTable.h"
 #include <stdexcept>
 
+
 CTable::CTable()
 {
 	rows = 0;
@@ -25,15 +26,47 @@ CTable::CTable(const std::string& sName, int columns, int rows,int colsWidth)
 	offsetY = 10;
 	columnWidths.assign(columns, colsWidth);
 	fontSize = 16;
+	table.resize(columns);
+	for (int i = 0; i < columns; i++) {
+		table[i].resize(rows);
+	}
 }
 
-CTable& CTable::addRow()
-{
+CTable& CTable::addRow() {
+	if (table.size() != columns) {
+		table.resize(columns);
+	}
+	for (int i = 0; i < columns; i++) {
+		if (table[i].size() < rows + 1) {
+			table[i].resize(rows + 1); 
+		}
+		if (types[i] == INT) {
+			table[i][rows] = std::make_unique<IntCell>();
+		}
+		else if (types[i] == DOUBLE) {
+			table[i][rows] = std::make_unique<DoubleCell>();
+		}
+		else if (types[i] == STRING) {
+			table[i][rows] = std::make_unique<StringCell>();
+		}
+		else if (types[i] == IMG) {
+			table[i][rows] = std::make_unique<ImgCell>();
+		}
+		else {
+			throw std::runtime_error("Unknown column type in addRow");
+		}
+	}
+	rows++;
 	return *this;
 }
 
+
 CTable& CTable::addColumn(std::string title, type colType, int width)
 {
+	if (columns >= table.size()) {
+		table.resize(columns + 1);
+	}
+	table[columns].resize(rows);
 	if (rows) {
 		if (colType == INT) {
 			for (int i = 0; i < rows; i++) {
@@ -81,18 +114,33 @@ CTable& CTable::draw(CDC* pDC)
 
 	int colOffset = offsetX;
 	int rowOffset = offsetY+rowHeight;
+	pDC->MoveTo(colOffset, rowOffset);
+	pDC->LineTo(colOffset, rowOffset + rowHeight);
 	for (int i = 0; i < columns; i++) {
 		CRect headerRect(colOffset, rowOffset, colOffset + columnWidths[i], rowOffset + rowHeight);
-		pDC->Rectangle(headerRect);
+		pDC->MoveTo(colOffset, rowOffset + rowHeight);
+		pDC->LineTo(colOffset + columnWidths[i], rowOffset + rowHeight);
+		pDC->LineTo(colOffset + columnWidths[i], rowOffset);
 		pDC->DrawText(CString(titles[i].c_str()), headerRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 		colOffset += columnWidths[i];
 	}
-	return *this;
-	for (int i = 0; i < columns; i++) {
-		for (int j = 0; j < rows; j++) {
-			//table[i][j]->draw();
+
+
+	for (int i = 0; i < rows; i++) {
+		colOffset = offsetX;
+		rowOffset = offsetY + (2+i)*rowHeight;
+		pDC->MoveTo(colOffset, rowOffset);
+		pDC->LineTo(colOffset, rowOffset + rowHeight);
+		for (int j = 0; j < columns; j++) {
+			pDC->MoveTo(colOffset, rowOffset + rowHeight);
+			pDC->LineTo(colOffset + columnWidths[j], rowOffset + rowHeight);
+			pDC->LineTo(colOffset + columnWidths[j], rowOffset);
+			CRect cellRect(colOffset, rowOffset, colOffset + columnWidths[j], rowOffset + rowHeight);
+			table[j][i]->draw(pDC, cellRect);
+			colOffset += columnWidths[j];
 		}
 	}
+	return *this;
 }
 
 void IntCell::draw(CDC* pDC,CRect& rect)
@@ -105,19 +153,28 @@ void IntCell::draw(CDC* pDC,CRect& rect)
 void DoubleCell::draw(CDC* pDC, CRect& rect)
 {
 	CString str;
-	str.Format(L"%f", value);
+	str.Format(L"%0.2f", value);
 	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
 void StringCell::draw(CDC* pDC, CRect& rect)
 {
-	CString str(value.c_str());
-	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+	CString cstr(value.c_str());
+	pDC->DrawText(cstr, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
 void ImgCell::draw(CDC* pDC, CRect& rect)
 {
 	CImage img;
-	img.Load(CString(path.c_str()));
+	HRESULT hr = img.Load(CString(path.c_str()));
+
+	if (FAILED(hr)) {
+		CString errorMsg;
+		errorMsg.Format(L"Image load failed: %s", path.c_str());
+		pDC->DrawText(errorMsg, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+		return;
+	}
 	img.Draw(pDC->m_hDC, rect);
+
 }
+
