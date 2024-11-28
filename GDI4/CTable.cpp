@@ -10,7 +10,7 @@ CTable::CTable()
 	rowHeight = 70;
 	offsetX = 10;
 	offsetY = 10;
-	fontSize = 16;
+	font.CreatePointFont(160, L"Arial");
 }
 
 CTable::CTable(const std::string& sName, int columns, int rows,int colsWidth)
@@ -21,11 +21,11 @@ CTable::CTable(const std::string& sName, int columns, int rows,int colsWidth)
 	this->columns = columns;
 	this->rows = rows;
 	types.resize(columns);
-	rowHeight = 20;
+	rowHeight = 70;
 	offsetX = 10;
 	offsetY = 10;
 	columnWidths.assign(columns, colsWidth);
-	fontSize = 16;
+	font.CreatePointFont(160, L"Arial");
 	table.resize(columns);
 	for (int i = 0; i < columns; i++) {
 		table[i].resize(rows);
@@ -56,6 +56,7 @@ CTable& CTable::addRow() {
 			throw std::runtime_error("Unknown column type in addRow");
 		}
 	}
+	rowHeights.push_back(rowHeight);
 	rows++;
 	return *this;
 }
@@ -99,69 +100,190 @@ CTable& CTable::addColumn(std::string title, type colType, int width)
 	return *this;
 }
 
+CTable& CTable::setRowHeight(int height,int row)
+{
+	if (row == -1) {
+		row = rows - 1;
+	}
+	if (row >= 0 && height > 0) 
+		rowHeights[row] = height; return *this;
+}
+
 CTable& CTable::draw(CDC* pDC)
 {
-	CFont font;
-	font.CreatePointFont(fontSize * 10, L"Arial");
 	pDC->SelectObject(&font);
+	CRect cellRect(0, 0, 0, 0);
+	int rowHeightOffset = 0;
+	int colOffset = offsetX;
+	int rowOffset = offsetY + 2*headerHeight;
+	for (int i = 0; i < rows; i++) {
+		colOffset = offsetX;
+		rowOffset = offsetY + 2 * headerHeight + rowHeightOffset;
+		for (int j = 0; j < columns; j++) {
+			cellRect.SetRect(colOffset, rowOffset, colOffset + columnWidths[j], rowOffset + rowHeights[i]);
+			table[j][i]->draw(pDC, cellRect);
+			if (columnWidths[j] < cellRect.Width())
+			{
+				columnWidths[j] = cellRect.Width();
+			}
+			if (rowHeights[i] < cellRect.Height())
+			{
+				rowHeights[i] = cellRect.Height();
+			}
+			colOffset += columnWidths[j];
+		}
+		rowHeightOffset += rowHeights[i];
+	}
+
 	int colWidth = 0;
 	for (int i = 0; i < columns; i++) {
 		colWidth += columnWidths[i];
 	}
-	CRect rect(offsetX, offsetY, offsetX + colWidth, offsetY + rowHeight);
+	CRect rect(offsetX, offsetY, offsetX + colWidth, offsetY + headerHeight);
 	pDC->Rectangle(rect);
 	pDC->DrawText(CString(name.c_str()), rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-	int colOffset = offsetX;
-	int rowOffset = offsetY+rowHeight;
+	colOffset = offsetX;
+	rowOffset = offsetY+ headerHeight;
 	pDC->MoveTo(colOffset, rowOffset);
-	pDC->LineTo(colOffset, rowOffset + rowHeight);
+	pDC->LineTo(colOffset, rowOffset + headerHeight);
 	for (int i = 0; i < columns; i++) {
-		CRect headerRect(colOffset, rowOffset, colOffset + columnWidths[i], rowOffset + rowHeight);
-		pDC->MoveTo(colOffset, rowOffset + rowHeight);
-		pDC->LineTo(colOffset + columnWidths[i], rowOffset + rowHeight);
+		CRect headerRect(colOffset, rowOffset, colOffset + columnWidths[i], rowOffset + headerHeight);
+		pDC->MoveTo(colOffset, rowOffset + headerHeight);
+		pDC->LineTo(colOffset + columnWidths[i], rowOffset + headerHeight);
 		pDC->LineTo(colOffset + columnWidths[i], rowOffset);
 		pDC->DrawText(CString(titles[i].c_str()), headerRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 		colOffset += columnWidths[i];
 	}
 
+	rowHeightOffset = 0;
 
 	for (int i = 0; i < rows; i++) {
 		colOffset = offsetX;
-		rowOffset = offsetY + (2+i)*rowHeight;
+		rowOffset = offsetY + 2 * headerHeight + rowHeightOffset;
 		pDC->MoveTo(colOffset, rowOffset);
-		pDC->LineTo(colOffset, rowOffset + rowHeight);
+		pDC->LineTo(colOffset, rowOffset + rowHeights[i]);
 		for (int j = 0; j < columns; j++) {
-			pDC->MoveTo(colOffset, rowOffset + rowHeight);
-			pDC->LineTo(colOffset + columnWidths[j], rowOffset + rowHeight);
+			pDC->MoveTo(colOffset, rowOffset + rowHeights[i]);
+			pDC->LineTo(colOffset + columnWidths[j], rowOffset + rowHeights[i]);
 			pDC->LineTo(colOffset + columnWidths[j], rowOffset);
-			CRect cellRect(colOffset, rowOffset, colOffset + columnWidths[j], rowOffset + rowHeight);
+			CRect cellRect(colOffset, rowOffset, colOffset + columnWidths[j], rowOffset + rowHeights[i]);
 			table[j][i]->draw(pDC, cellRect);
 			colOffset += columnWidths[j];
 		}
+		rowHeightOffset += rowHeights[i];
 	}
 	return *this;
 }
 
-void IntCell::draw(CDC* pDC,CRect& rect)
+void IntCell::draw(CDC* pDC, CRect& rect)
 {
 	CString str;
 	str.Format(L"%d", value);
+	CSize textSize = pDC->GetTextExtent(str);
+	if (textSize.cx > rect.Width()-30) {
+		rect.right = rect.left + textSize.cx+30;
+	}
 	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
+
 
 void DoubleCell::draw(CDC* pDC, CRect& rect)
 {
 	CString str;
 	str.Format(L"%0.2f", value);
+	CSize textSize = pDC->GetTextExtent(str);
+	if (textSize.cx > rect.Width() - 30) {
+		rect.right = rect.left + textSize.cx + 30;
+	}
 	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+}
+
+int getMaxWordWidth(CDC* pDC, CString cstr) {
+	CString word;
+	CSize wordSize;
+	int maxWidth = 0;
+	for (int i = 0; i <= cstr.GetLength(); ++i) {
+		if (i == cstr.GetLength() || cstr[i] == ' ') {
+			if (!word.IsEmpty()) {
+				wordSize = pDC->GetTextExtent(word);
+				if (wordSize.cx > maxWidth) {
+					maxWidth = wordSize.cx;
+				}
+				word.Empty();
+			}
+		}
+		else {
+			word += cstr[i];
+		}
+	}
+	return maxWidth;
+}
+
+int drawWords(CDC* pDC, CString cstr, int availableWidth,int x,int y) {
+	CString word;
+	CSize wordSize;
+	int numLines = 0;
+	CString currentLine;
+	for (int i = 0; i <= cstr.GetLength(); ++i) {
+		if (i == cstr.GetLength() || cstr[i] == ' ') {
+			if (!word.IsEmpty()) {
+				wordSize = pDC->GetTextExtent(word);
+				if (pDC->GetTextExtent(currentLine + word).cx > availableWidth) {
+					if (!currentLine.IsEmpty()) {
+						pDC->TextOut(x, y, currentLine);
+						y += wordSize.cy+5;
+						numLines++;
+						currentLine.Empty();
+					}
+				}
+				if (!currentLine.IsEmpty()) {
+					currentLine += _T(" ");
+				}
+				currentLine += word;
+
+				word.Empty();
+			}
+		}
+		else {
+			word += cstr[i];
+		}
+	}
+	if (!currentLine.IsEmpty()) {
+		pDC->TextOut(x, y, currentLine);
+		y += wordSize.cy+5;
+		numLines++;
+	}
+	return numLines;
 }
 
 void StringCell::draw(CDC* pDC, CRect& rect)
 {
 	CString cstr(value.c_str());
-	pDC->DrawText(cstr, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+	CSize textSize = pDC->GetTextExtent(cstr);
+	if (textSize.cx > rect.Width() - 30) {
+		int offset = 10;
+		int padding = 15;
+
+		int lineHeight = pDC->GetTextExtent(_T("A")).cy + 5;
+		int availableWidth = rect.Width() - 2 * padding;
+		int maxWidth = getMaxWordWidth(pDC, cstr);
+		if (maxWidth > availableWidth) {
+			availableWidth = maxWidth;
+			rect.right = rect.left + maxWidth + 2 * padding;
+		}
+
+		int x = rect.left + padding;
+		int y = rect.top + offset;
+
+		int numLines = drawWords(pDC, cstr, availableWidth, x, y);
+		rect.bottom = rect.top + numLines * lineHeight + offset;
+	}
+	else {
+		pDC->DrawText(cstr, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+	}
 }
+
 
 void ImgCell::draw(CDC* pDC, CRect& rect)
 {
@@ -173,27 +295,66 @@ void ImgCell::draw(CDC* pDC, CRect& rect)
 		std::wstring wPath(path.begin(), path.end());
 		CString errorMsg;
 		errorMsg.Format(L"Image load failed: %s", wPath.c_str());
-		rect.left += 10;
-		pDC->DrawText(errorMsg, rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+		CSize textSize = pDC->GetTextExtent(errorMsg);
+		if (textSize.cx > rect.Width() - 30) {
+			int offset = 10;
+			int padding = 15;
+
+			int lineHeight = pDC->GetTextExtent(_T("A")).cy + 5;
+			int availableWidth = rect.Width() - 2 * padding;
+			int maxWidth = getMaxWordWidth(pDC, errorMsg);
+			if (maxWidth > availableWidth) {
+				availableWidth = maxWidth;
+				rect.right = rect.left + maxWidth + 2 * padding;
+			}
+
+			int x = rect.left + padding;
+			int y = rect.top + offset;
+
+			int numLines = drawWords(pDC, errorMsg, availableWidth, x, y);
+			rect.bottom = rect.top + numLines * lineHeight + offset;
+		}
+		else
+		{
+			rect.left += 10;
+			pDC->DrawText(errorMsg, rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+		}
 		return;
 	}
-	img.Draw(pDC->m_hDC, rect);
+	CRect myRect(0,0,0,0);
+	myRect.left = rect.left;
+	myRect.top = rect.top;
+	if (img.GetHeight() < rect.Height()) {
+		myRect.top+= (rect.Height() - img.GetHeight()) / 2;
+		myRect.bottom = myRect.top + img.GetHeight();
+	}
+	else {
+		//AfxMessageBox(_T("Image height is bigger than cell height"));
+		rect.bottom = img.GetHeight() + rect.top;	
+		myRect.bottom = rect.bottom;
+	}
+	if (img.GetWidth() < rect.Width()) {
+		//AfxMessageBox(_T("Image width is smaller than cell width"));
+		myRect.left += (rect.Width() - img.GetWidth()) / 2;
+		myRect.right = myRect.left + img.GetWidth();
+	}
+	else {
+		rect.right = img.GetWidth() + rect.left;
+		myRect.right = rect.right;
+	}
+	img.Draw(pDC->m_hDC, myRect);
 
 }
 
 CTable& CTable::addRow(const std::vector<void*>& values) {
-	// Проверяем, что количество значений соответствует количеству столбцов
 	if (values.size() != columns) {
 		throw std::invalid_argument("Values count should be equal to columns count" + std::to_string(columns) + " but was " + std::to_string(values.size()));
 	}
 
-	// Увеличиваем количество строк
 	rows++;
 
-	// Для каждого столбца проверяем, что достаточно строк в векторе
 	for (int i = 0; i < columns; i++) {
 		if (table[i].size() <= rows) {
-			// Увеличиваем размер столбца, если это необходимо
 			if (types[i] == INT) {
 				table[i].push_back(std::make_unique<IntCell>());
 			}
@@ -212,6 +373,8 @@ CTable& CTable::addRow(const std::vector<void*>& values) {
 		}
 	}
 
+	rowHeights.push_back(rowHeight);
+
 	// Записываем значения в ячейки для текущей строки
 	for (int i = 0; i < columns; i++) {
 		if (table[i][rows - 1] == nullptr) {
@@ -219,9 +382,26 @@ CTable& CTable::addRow(const std::vector<void*>& values) {
 		}
 
 		// Устанавливаем значение в ячейку
-		table[i][rows - 1]->setValue(values[i]);
+		table[i][rows - 1]->setValue(values[i],this);
 	}
 
 	return *this;
 }
 
+int CTable::getHeight() const
+{
+	int height = 2 * offsetY + headerHeight * 2;
+	for (int i = 0; i < rows; i++) {
+		height += rowHeights[i];
+	}
+	return height;
+}
+
+int CTable::getWidht() const
+{
+	int width = 2 * offsetX;
+	for (int i = 0; i < columns; i++) {
+		width += columnWidths[i];
+	}
+	return width;
+}
