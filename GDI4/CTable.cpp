@@ -10,7 +10,22 @@ CTable::CTable()
 	rowHeight = 70;
 	offsetX = 10;
 	offsetY = 10;
-	font.CreatePointFont(160, L"Arial");
+	font.lfHeight = -MulDiv(16, 192,72);
+	font.lfWidth = 0;
+	font.lfEscapement = 0;
+	font.lfOrientation = 0;
+	font.lfWeight = FW_NORMAL;
+	font.lfItalic = FALSE;
+	font.lfUnderline = FALSE;
+	font.lfStrikeOut = FALSE;
+	font.lfCharSet = ANSI_CHARSET;
+	font.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	font.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+	font.lfQuality = DEFAULT_QUALITY;
+	font.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
+	wcscpy_s(font.lfFaceName, LF_FACESIZE, L"Arial");
+
+	textColor = RGB(0, 0, 0);
 }
 
 CTable::CTable(const std::string& sName, int columns, int rows,int colsWidth)
@@ -25,11 +40,26 @@ CTable::CTable(const std::string& sName, int columns, int rows,int colsWidth)
 	offsetX = 10;
 	offsetY = 10;
 	columnWidths.assign(columns, colsWidth);
-	font.CreatePointFont(160, L"Arial");
+	font.lfHeight = -MulDiv(16, 192,72);
+	font.lfWidth = 0;
+	font.lfEscapement = 0;
+	font.lfOrientation = 0;
+	font.lfWeight = FW_NORMAL;
+	font.lfItalic = FALSE;
+	font.lfUnderline = FALSE;
+	font.lfStrikeOut = FALSE;
+	font.lfCharSet = ANSI_CHARSET;
+	font.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	font.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+	font.lfQuality = DEFAULT_QUALITY;
+	font.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
+	wcscpy_s(font.lfFaceName, LF_FACESIZE, L"Arial");
+
 	table.resize(columns);
 	for (int i = 0; i < columns; i++) {
 		table[i].resize(rows);
 	}
+	textColor = RGB(0, 0, 0);
 }
 
 CTable& CTable::addRow() {
@@ -111,17 +141,25 @@ CTable& CTable::setRowHeight(int height,int row)
 
 CTable& CTable::draw(CDC* pDC)
 {
-	pDC->SelectObject(&font);
+	CFont cfont;
+	cfont.CreateFontIndirect(&this->font);
+	pDC->SelectObject(&cfont);
+	pDC->SetTextColor(textColor);
 	CRect cellRect(0, 0, 0, 0);
 	int rowHeightOffset = 0;
 	int colOffset = offsetX;
 	int rowOffset = offsetY + 2*headerHeight;
 	for (int i = 0; i < rows; i++) {
+		int maxRowHeight = 0;
 		colOffset = offsetX;
 		rowOffset = offsetY + 2 * headerHeight + rowHeightOffset;
 		for (int j = 0; j < columns; j++) {
 			cellRect.SetRect(colOffset, rowOffset, colOffset + columnWidths[j], rowOffset + rowHeights[i]);
 			table[j][i]->draw(pDC, cellRect);
+			if (cellRect.Height() > maxRowHeight) {
+				rowHeights[i]=maxRowHeight = cellRect.Height();
+
+			}
 			if (columnWidths[j] < cellRect.Width())
 			{
 				columnWidths[j] = cellRect.Width();
@@ -184,6 +222,7 @@ void IntCell::draw(CDC* pDC, CRect& rect)
 	if (textSize.cx > rect.Width()-30) {
 		rect.right = rect.left + textSize.cx+30;
 	}
+	rect.bottom = rect.top + textSize.cy + 20;
 	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -196,6 +235,7 @@ void DoubleCell::draw(CDC* pDC, CRect& rect)
 	if (textSize.cx > rect.Width() - 30) {
 		rect.right = rect.left + textSize.cx + 30;
 	}
+	rect.bottom = rect.top + textSize.cy + 20;
 	pDC->DrawText(str, rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 }
 
@@ -296,6 +336,7 @@ void ImgCell::draw(CDC* pDC, CRect& rect)
 		CString errorMsg;
 		errorMsg.Format(L"Image load failed: %s", wPath.c_str());
 		CSize textSize = pDC->GetTextExtent(errorMsg);
+		rect.bottom = rect.top + textSize.cy + 20;
 		if (textSize.cx > rect.Width() - 30) {
 			int offset = 10;
 			int padding = 15;

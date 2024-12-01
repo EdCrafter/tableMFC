@@ -189,6 +189,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CDialFont.h" />
     <ClInclude Include="CTable.h" />
     <ClInclude Include="GDI4.h" />
     <ClInclude Include="GDI4Doc.h" />
@@ -199,6 +200,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CDialFont.cpp" />
     <ClCompile Include="CTable.cpp" />
     <ClCompile Include="GDI4.cpp" />
     <ClCompile Include="GDI4Doc.cpp" />

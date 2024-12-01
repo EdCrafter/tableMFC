@@ -95,7 +95,8 @@ private:
 	std::vector<int> columnWidths;
 	std::vector<int> rowHeights;
 	int rowHeight = 70;
-	CFont font;
+	LOGFONT font;
+	COLORREF textColor;
 public:
 	
 	CTable();
@@ -120,5 +121,7 @@ public:
 	CTable& addRow(const std::vector<void*>& values);
 	int getWidht() const;
 	int getHeight() const;
+	LOGFONT& getFont() { return font; }
+	COLORREF& getTextColor() { return textColor; }
 };
 

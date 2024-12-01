@@ -12,6 +12,8 @@
 #include "GDI4Doc.h"
 #include "GDI4View.h"
 
+#include "CDialFont.h"
+
 #include <fstream>
 
 #ifdef _DEBUG
@@ -30,6 +32,7 @@ BEGIN_MESSAGE_MAP(CTableView, CScrollView)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CTableView::OnFilePrintPreview)
 	ON_WM_CONTEXTMENU()
 	ON_WM_RBUTTONUP()
+	ON_COMMAND(ID_MFont, &CTableView::OnMfont)
 END_MESSAGE_MAP()
 
 // создание/уничтожение CTableView
@@ -59,7 +62,6 @@ void CTableView::OnDraw(CDC* pDC)
 	CTableDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
 	
-
 	table.draw(pDC);
 	
 	SetScrollSizes(MM_TEXT, CSize(table.getWidht(),table.getHeight()));
@@ -144,3 +146,20 @@ CTableDoc* CTableView::GetDocument() const // встроена неотлаженная версия
 }
 #endif //_DEBUG
 
+
+
+void CTableView::OnMfont()
+{
+	
+	CDialFont dlg(table.getFont(),table.getTextColor());
+	
+
+	if (dlg.DoModal() == IDOK)
+	{
+		MessageBox(L"OK");
+	}
+	else
+		MessageBox(L"Cancel");
+
+	Invalidate();
+}
